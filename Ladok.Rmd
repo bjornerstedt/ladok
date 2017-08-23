@@ -1,0 +1,99 @@
+---
+title: "Ladok Resultat"
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+library(lubridate)
+load(file = "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/ladok.Rdata")
+
+andelar = kursresult %>% 
+    group_by(kursnamn, termindatum, betyg) %>% 
+    summarise(antal = n()) %>% 
+    group_by(kursnamn, termindatum) %>% 
+    mutate(
+        andel = antal / sum(antal) * 100
+        ) %>% 
+    filter( year(termindatum) < 2017)
+
+```
+
+## Students
+
+```{r}
+kursresult %>% 
+    filter(akademiskt_ar < 2017) %>% 
+    group_by(kursnamn, akademiskt_ar) %>% 
+    summarise(antal = n()) %>% 
+    ggplot(aes(akademiskt_ar, antal, color = kursnamn)) + geom_line() + labs(title = "Registered students")
+
+```
+
+# Economics A
+
+## Economics A - Kursresultat
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics A") %>% 
+    ggplot(aes(termindatum, antal, color = betyg )) + 
+    geom_line() + labs(title = "Antal godkänd A kurs")
+
+```
+
+## Economics A - Andelar
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics A") %>% 
+    ggplot(aes(termindatum, andel, color = betyg )) + 
+    geom_line() + labs(title = "Andel godkänd A kurs")
+
+```
+
+# Economics B
+
+## Economics B - Kursresultat
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics B") %>% 
+    ggplot(aes(termindatum, antal, color = betyg )) + 
+    geom_line() + labs(title = "Antal godkänd B kurs")
+
+```
+
+## Economics B - Andelar
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics B") %>% 
+    ggplot(aes(termindatum, andel, color = betyg )) + 
+    geom_line() + labs(title = "Andel godkänd B kurs")
+
+```
+
+# Economics C
+
+## Economics C - Kursresultat
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics C") %>% 
+    ggplot(aes(termindatum, antal, color = betyg )) + 
+    geom_line() + labs(title = "Antal godkänd C kurs")
+
+```
+
+## Economics C - Andelar
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics C") %>% 
+    ggplot(aes(termindatum, andel, color = betyg )) + 
+    geom_line() + labs(title = "Andel godkänd C kurs")
+
+```

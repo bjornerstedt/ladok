@@ -1,0 +1,26 @@
+
+.title-slide {
+  background-color: white; 
+}
+
+slides > slide.backdrop {
+  background: white;
+}
+
+table {
+   max-width: 95%;
+   border: 1px solid #ccc;
+    border-spacing: 5px;
+   width:100%;
+}
+
+th {
+  background-color: #000000;
+  color: #ffffff;
+}
+ 
+td {
+   border: 1px solid #ccc;
+}
+
+img { width: 500px; }
