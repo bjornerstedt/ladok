@@ -2,7 +2,7 @@ library(tidyverse)
 library(readxl)
 library(lubridate)
 
-con <- dbConnect(RMySQL::MySQL(),
+con = dbConnect(RMySQL::MySQL(),
                  host = "localhost",
                  user = "root",
                  dbname = "ladok",
@@ -10,39 +10,46 @@ con <- dbConnect(RMySQL::MySQL(),
                  # password = rstudioapi::askForPassword("Database password")
 )
 
-kursbeskrivning <- 
+kurs = 
     tbl(con, "kurs") %>% 
-    collect() %>% 
+    filter(inst == 43) %>% 
     select(kursid = kod, kursnamn = benamne) 
 
-kursnamn <- 
+prov = 
     tbl(con, "prov") %>% 
-    collect() %>% 
-    select(kursid = kurs, prov, benamn) %>% 
-    left_join(kursbeskrivning, by = "kursid")
+    select(kursid = kurs, prov, delkurs=benamne) %>% 
+    inner_join(kurs, by = "kursid") 
 
 ffgkurs <- 
     tbl(con, "ffgkurs") %>% 
-    collect() %>% 
     select(pnr, kursid = kurs, progr, termin, kurstakt, ort, omgang, regdatum=idatum) %>% 
-    # left_join(kursnamn %>% select(kursid = kurs, kurs = kursnamn), by = "kursid") %>% 
+    inner_join(kurs, by = "kursid") %>% 
+    collect() %>% 
     mutate(
         ar = trunc(termin/10),
         terminid = termin - ar*10,
         regdatum = as_date(regdatum),
         akademiskt_ar = if_else(terminid == 2, ar, ar - 1)
+    ) %>% 
+    select(-termin, -kurstakt, -termin, -ort, -omgang)
+
+godkprov = 
+    tbl(con, "godkprov") %>% 
+    select(kursid=kurs, pnr,  prov, betyg, idatum) %>% 
+    inner_join(prov, by = c("kursid", "prov")) %>% 
+    collect() %>% 
+    mutate(
+        idatum = as_date(idatum)
+    ) %>% 
+    left_join(ffgkurs, by = c("kursid", "pnr") ) %>% 
+    mutate(
+        duration = as.integer(idatum - regdatum)
     )
 
-godkprov <- 
-    tbl(con, "godkprov") %>% 
-    collect() %>% 
-    select(kursid=kurs, pnr,  prov, betyg, progr, idatum) %>% 
-    left_join(kursnamn, by = c("kursid", "prov")) 
-
-godkkurs <- 
+godkkurs = 
     tbl(con, "godkkurs") %>% 
+    select( kursid=kurs, pnr,  betyg, datum=idatum) %>% 
     collect() %>% 
-    select( kursid=kurs, pnr,  betyg, datum) %>% 
     mutate(
         datum = as_date(datum)
     )
@@ -52,9 +59,8 @@ kursresult =
     mutate(
         betyg = coalesce(betyg, "U"),
         duration = as.integer(datum - regdatum),
-        termindatum = make_date(ar, 1 + (terminid - 1)*6, 1 )
-    ) %>% 
-    left_join(kursbeskrivning, by = "kursid")
+        termindatum = make_date(ar, 1 + (terminid - 1) * 6, 1 )
+    ) 
 
 save(ffgkurs, godkprov, kursresult, file = "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/ladok.Rdata")
 
