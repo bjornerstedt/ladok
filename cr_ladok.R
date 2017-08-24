@@ -20,7 +20,7 @@ prov =
     select(kursid = kurs, prov, delkurs=benamne) %>% 
     inner_join(kurs, by = "kursid") 
 
-ffgkurs <- 
+ffgkurs = 
     tbl(con, "ffgkurs") %>% 
     select(pnr, kursid = kurs, progr, termin, kurstakt, ort, omgang, regdatum=idatum) %>% 
     inner_join(kurs, by = "kursid") %>% 
