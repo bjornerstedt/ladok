@@ -18,8 +18,9 @@ andelar = kursresult %>%
     summarise(antal = n()) %>% 
     group_by(kursnamn, termindatum) %>% 
     mutate(
-        andel = antal / sum(antal) * 100
-        ) %>% 
+        andel = antal / sum(antal) * 100,
+        betyg = factor(betyg, levels = c("U","VG","G"))
+    ) %>% 
     filter( year(termindatum) < 2017)
 
 godk_program = kursresult %>% 
@@ -37,14 +38,14 @@ godk_program = kursresult %>%
 
 ## Registrerade studenter
 
-Antalet studenter per akademiskt år är relativt konstant över tiden.
+Antalet studenter per akademiskt år är relativt konstant över tiden, med en ökning på ungefär 20 studenter.
 
 ```{r}
 kursresult %>% 
     filter(akademiskt_ar < 2017) %>% 
     group_by(akademiskt_ar) %>% 
     summarise(antal = n()) %>% 
-    ggplot(aes(akademiskt_ar, antal)) + geom_line() + labs(title = "Registerade studenter")
+    ggplot(aes(akademiskt_ar, antal)) + geom_line()  + geom_smooth(se = FALSE, method = "lm") + labs(title = "Registerade studenter")
 
 ```
 
@@ -92,12 +93,12 @@ Notera att det finns `r kursresult %>% filter(betyg != "U", kursnamn == "Economi
 
 ```{r}
 kursresult %>% 
-    filter(betyg != "U", kursnamn == "Economics A", duration > 0) %>% 
+    filter(betyg != "U", kursnamn == "Economics B", duration > 0) %>% 
     # group_by(kursnamn ) %>% 
     mutate(duration = duration / 365) %>% 
     ggplot(aes(duration)) + 
-        geom_histogram(bins = 10) + 
-        labs(title = "Studietid A kurs", x = "År", y = "Antal" )
+        geom_histogram(binwidth = 0.5, center = 0.25) + 
+        labs(title = "Studietid A kurs", x = "År", y = "Andel" ) + scale_x_continuous(breaks = 1:10)
 ```
 
 ## Economics A - Kursresultat
@@ -115,9 +116,8 @@ andelar %>%
 ```{r}
 andelar %>% 
     filter(kursnamn == "Economics A") %>% 
-    ggplot(aes(termindatum, andel, color = betyg )) + 
-        geom_line() + 
-        labs(title = "Andel godkänd A kurs", x ="Starttermin")
+    ggplot(aes(termindatum, andel, fill = betyg )) + 
+    geom_area(alpha = 0.6) + labs(title = "Andel godkänd A kurs")
 
 ```
 
@@ -135,9 +135,15 @@ andelar %>%
 
 ```{r}
 andelar %>% 
+    select(-antal) %>% 
     filter(kursnamn == "Economics B") %>% 
-    ggplot(aes(termindatum, andel, color = betyg )) + 
-    geom_line() + labs(title = "Andel godkänd B kurs")
+    spread(key = betyg, value = andel, fill = 0) %>% 
+    gather(betyg, andel,-kursnamn, -termindatum) %>% 
+    mutate(
+        betyg = factor(betyg, levels = c("U","VG","G"))
+    ) %>% 
+    ggplot(aes(termindatum, andel, fill = betyg )) + 
+    geom_area(alpha = 0.6) + labs(title = "Andel godkänd B kurs")
 
 ```
 
@@ -155,21 +161,27 @@ andelar %>%
 
 ```{r}
 andelar %>% 
+    select(-antal) %>% 
     filter(kursnamn == "Economics C") %>% 
-    ggplot(aes(termindatum, andel, color = betyg )) + 
-    geom_line() + labs(title = "Andel godkänd C kurs")
+    spread(key = betyg, value = andel, fill = 0) %>% 
+    gather(betyg, andel,-kursnamn, -termindatum) %>% 
+    mutate(
+        betyg = factor(betyg, levels = c("U","VG","G"))
+    ) %>% 
+    ggplot(aes(termindatum, andel, fill = betyg )) + 
+    geom_area(alpha = 0.6) + labs(title = "Andel godkänd C kurs")
 
 ```
 
 ## Vilka B/C kurser läser studenter?
 
-Totalt `r godkprov %>% filter(kursnamn != "Economics A") %>% tally() %>% as.numeric()` godkända studenter. Antal godkända per kurs sedan januari 2016.
+Totalt `r godkprov %>% filter(kursnamn != "Economics A") %>% tally() %>% as.numeric()` godkända studenter. Antal godkända per kurs under akademiska åren 2015 och 2016.
 
 ```{r}
 library(knitr)
 library(stringr)
 godkprov %>% 
-    filter(kursnamn != "Economics A", year(idatum) >= 2016) %>% 
+    filter(kursnamn != "Economics A", akademiskt_ar == 2015 | akademiskt_ar == 2016) %>% 
     mutate(delkurs = str_replace(delkurs, " 1", "")) %>% 
     group_by(delkurs, kursnamn) %>% 
     summarise(antal = n()) %>% 
@@ -182,9 +194,17 @@ godkprov %>%
 ## Uppsats
 
 ```{r}
-godkprov %>% 
+uppsats_tid = godkprov %>% 
     filter(delkurs == "Essay") %>% 
-    mutate(veckor = duration / 7) %>% 
-    ggplot(aes(veckor)) + geom_histogram(bins = 50) + labs(title = "Antal veckor för uppsats")
+    mutate(
+        veckor = duration / 7,
+        mer_ar = duration > 365
+        ) 
+
+andel_mer = uppsats_tid %>% group_by(mer_ar) %>% summarise(antal = n()) %>% mutate(andel = antal/sum(antal))
+
+uppsats_tid %>% 
+    ggplot(aes(veckor)) + geom_histogram(binwidth = 10, center = 5) + labs(title = "Antal veckor för uppsats")
 ```
 
+För `r round(andel_mer$andel[andel_mer$mer_ar]*100,1)` procent av studenterna tog det mer än ett år att bli färdig.

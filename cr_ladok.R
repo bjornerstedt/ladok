@@ -1,6 +1,7 @@
 library(tidyverse)
 library(readxl)
 library(lubridate)
+library(DBI)
 
 con = dbConnect(RMySQL::MySQL(),
                  host = "localhost",
@@ -41,7 +42,7 @@ godkprov =
     mutate(
         idatum = as_date(idatum)
     ) %>% 
-    left_join(ffgkurs, by = c("kursid", "pnr") ) %>% 
+    left_join(ffgkurs, by = c("kursid", "kursnamn","pnr") ) %>% 
     mutate(
         duration = as.integer(idatum - regdatum)
     )
