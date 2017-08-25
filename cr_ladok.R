@@ -3,13 +3,7 @@ library(readxl)
 library(lubridate)
 library(DBI)
 
-con = dbConnect(RMySQL::MySQL(),
-                 host = "localhost",
-                 user = "root",
-                 dbname = "ladok",
-                 password = "pwdpwd"
-                 # password = rstudioapi::askForPassword("Database password")
-)
+con <- dbConnect(RMySQL::MySQL(), group = "ladok")
 
 kurs = 
     tbl(con, "kurs") %>% 
