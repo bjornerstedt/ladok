@@ -61,6 +61,7 @@ kursresult %>%
     summarise(antal = n()) %>% 
     ggplot(aes(akademiskt_ar, antal)) + geom_line()  + geom_smooth(se = FALSE, method = "lm") + labs(title = "Registerade studenter")
 
+tidsintervall = c(2014, 2015)
 ```
 
 ## Studenter per kurs
@@ -87,18 +88,6 @@ godk_program %>%
 
 ```
 
-## Programstudenter lyckas bättre
-
-Programstudenter lyckas väsentligt bättre i sina studier.
-
-```{r}
-godk_program %>% 
-    filter(kursnamn == "Economics A") %>% 
-    ggplot(aes(akademiskt_ar, andel, color = programstudent)) + 
-    geom_line() + 
-    labs(title = "Andel godkända studenter A kurs")
-```
-
 ## Studietid
 
 Det tar lång tid att läsa.
@@ -107,12 +96,12 @@ Notera att det finns `r kursresult %>% filter(betyg != "U", kursnamn == "Economi
 
 ```{r}
 kursresult %>% 
-    filter(betyg != "U", kursnamn == "Economics B", duration > 0) %>% 
+    filter(betyg != "U", kursnamn == "Economics A", duration > 0, akademiskt_ar <= tidsintervall[2]) %>% 
     # group_by(kursnamn ) %>% 
     mutate(duration = duration / 365) %>% 
     ggplot(aes(duration)) + 
         geom_histogram(binwidth = 0.5, center = 0.25) + 
-        labs(title = "Studietid A kurs", x = "År", y = "Andel" ) + 
+        labs(title = "Studietid A kurs", x = "År", y = "Antal" ) + 
         scale_x_continuous(breaks = 1:10)
 ```
 
@@ -235,7 +224,7 @@ Totalt `r godkprov %>% filter(kursnamn != "Economics A") %>% tally() %>% as.nume
 library(knitr)
 library(stringr)
 godkprov %>% 
-    filter(kursnamn != "Economics A", akademiskt_ar == 2015 | akademiskt_ar == 2016) %>% 
+    filter(kursnamn != "Economics A", akademiskt_ar %in% tidsintervall ) %>% 
     mutate(delkurs = str_replace(delkurs, " 1", "")) %>% 
     group_by(delkurs, kursnamn) %>% 
     summarise(antal = n()) %>% 
@@ -267,43 +256,78 @@ För `r round(andel_mer$andel[andel_mer$mer_ar]*100,1)` procent av studenterna t
 
 ```{r}
 icke_godkända = kursresult %>% 
-    filter(kursnamn == "Economics A", betyg == "U", akademiskt_ar == 2015 | akademiskt_ar == 2016 ) %>% 
-    select(pnr, kursid)
+    filter(kursnamn == "Economics A", betyg == "U", akademiskt_ar %in% tidsintervall) %>% 
+    mutate(
+        program = !is.na(progr)
+    ) %>% 
+    select(pnr, kursid, program)
 ```
 
 Totalt var `r icke_godkända %>% tally()` inte godkända på A kursen. Per delkurs var det:
 
 ```{r}
 godkprov %>% 
+    mutate(
+        program = !is.na(progr)
+    ) %>% 
     semi_join(icke_godkända, by = c("kursid", "pnr")) %>% 
     group_by(delkurs) %>% 
     tally() %>% 
     kable()
-    # group_by(pnr, kursid) %>% 
 ```
 
 ## Hur många delkurser har de läst?
 
-Drygt 20 percent har bara en återstående kurs.
-
 ```{r}
-utan_betyg = tibble( delkursantal = 0, n = icke_godkända %>% 
+utan_betyg = icke_godkända %>% 
     anti_join(godkprov, by = c("pnr", "kursid")) %>% 
-    tally() %>% as.numeric())
-
-med_betyg = godkprov %>% 
+    group_by(program) %>% 
+    tally() %>% 
+    mutate(delkursantal = 0)
+    
+personsaldo = godkprov %>% 
+    mutate(
+        program = !is.na(progr)
+    ) %>% 
     semi_join(icke_godkända, by = c("kursid", "pnr")) %>% 
-    group_by(pnr) %>% 
-    summarise(delkursantal = n()) %>% 
-    group_by(delkursantal) %>% 
+    group_by(pnr, program) %>% 
+    summarise(delkursantal = n()) 
+
+med_betyg = personsaldo %>% 
+    group_by(delkursantal, program) %>% 
     tally() 
 
-bind_rows(utan_betyg, med_betyg) %>% 
+delkurstabell = bind_rows(utan_betyg, med_betyg) %>% 
+    mutate(program = if_else(program, "Program", "Enstaka kurs")) %>% 
+    spread(program, n) %>% 
     mutate(
-        andel = round(n / sum(n) * 100, 1)
-    ) %>% 
+        Totalt = `Enstaka kurs` + `Program`,
+        andel = round(Totalt / sum(Totalt) * 100, 1)
+    ) 
+
+andel_nästan = delkurstabell$andel[delkurstabell$delkursantal == 3]
+antal_inga = delkurstabell$`Enstaka kurs`[delkurstabell$delkursantal == 0]
+delkurstabell%>% 
     kable()
+
 ```
 
+Av de som inte är färdiga med A kursen, har ca `r andel_nästan` 
+percent bara en återstående kurs. Man kan notera att `r antal_inga ` studenter, majoriteten av de som inte lyckas med enstaka kurs, inte tenterar ett enda poäng.
 
+## Vilken kurs saknas för de som har en kurs kvar?
+
+```{r}
+godkprov %>% 
+    filter(kursnamn == "Economics A", akademiskt_ar == 2015 | akademiskt_ar == 2016) %>% 
+    semi_join(personsaldo %>% filter(delkursantal == 3), by = "pnr") %>% 
+    select(pnr, delkurs) %>% 
+    mutate(val = 1) %>% 
+    spread(delkurs,  val) %>% 
+    gather(delkurs, resultat, -pnr) %>% 
+    filter(is.na(resultat)) %>% 
+    group_by(delkurs) %>% 
+    tally() %>% 
+    kable()
+```
 
