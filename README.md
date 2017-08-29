@@ -13,3 +13,5 @@ Analysis of student grades
 1. Install mysql and change password to root
 1. Install MySQL Admin and create test database: `CREATE database test;`
 1. Install RMySQL and dbplyr packages
+1. Install MySQL ODBC connector
+1. Put odbc.ini and odbcinst.ini in ~/Library/ODBC/ on Mac

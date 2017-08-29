@@ -1,6 +1,6 @@
 library(tidyverse)
 library(readxl)
-
+library(DBI)
 con <- dbConnect(RMySQL::MySQL(),
                  host = "localhost",
                  user = "root",

@@ -2,8 +2,13 @@ library(tidyverse)
 library(readxl)
 library(lubridate)
 library(DBI)
+library(odbc)
 
-con <- dbConnect(RMySQL::MySQL(), group = "ladok")
+# Connection with RMySQL:
+# con <- dbConnect(RMySQL::MySQL(), group = "ladok")
+
+# ODBC Connection
+con <- dbConnect(odbc::odbc(), "Ladok")
 
 kurs = 
     tbl(con, "kurs") %>% 
