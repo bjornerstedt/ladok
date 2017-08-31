@@ -3,6 +3,7 @@ library(readxl)
 library(lubridate)
 library(DBI)
 library(odbc)
+library(stringr)
 
 # Connection with RMySQL:
 # con <- dbConnect(RMySQL::MySQL(), group = "ladok")
@@ -29,9 +30,13 @@ ffgkurs =
         ar = trunc(termin/10),
         terminid = termin - ar*10,
         regdatum = as_date(regdatum),
-        akademiskt_ar = if_else(terminid == 2, ar, ar - 1)
+        akademiskt_ar = if_else(terminid == 2, ar, ar - 1),
+        pnr_chr = is.na(as.numeric(str_sub( pnr , 7,7))), 
+        kvinna = as.numeric(str_sub( pnr , 9, 9)) %% 2 == 0,
+        birthyear = as.numeric(str_sub( pnr , 1, 2)),
+        alder = 2017 - birthyear - if_else(birthyear < 20, 2000, 1900)
     ) %>% 
-    select(-termin, -kurstakt, -termin, -ort, -omgang)
+    select(-termin, -kurstakt, -termin, -ort, -omgang, -birthyear)
 
 godkprov = 
     tbl(con, "godkprov") %>% 

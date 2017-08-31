@@ -36,18 +36,6 @@ andelar_program = kursresult %>%
     ) %>% 
     filter( akademiskt_ar < 2017)
 
-
-godk_program = kursresult %>% 
-    mutate(programstudent = !is.na(progr)) %>% 
-    group_by(kursnamn, akademiskt_ar, betyg, programstudent) %>% 
-    summarise(antal = n()) %>% 
-    group_by(kursnamn, akademiskt_ar, programstudent) %>% 
-    mutate(
-        totantal = sum(antal),
-        andel = (1 - antal / sum(antal)) * 100
-        ) %>% 
-    filter(betyg == "U", akademiskt_ar < 2017)
-
 ```
 
 ## Registrerade studenter
@@ -82,6 +70,17 @@ kursresult %>%
 Andelen programstudenter har minskat. Fler läser enstaka kurs.
 
 ```{r}
+godk_program = kursresult %>% 
+    mutate(programstudent = !is.na(progr)) %>% 
+    group_by(kursnamn, akademiskt_ar, betyg, programstudent) %>% 
+    summarise(antal = n()) %>% 
+    group_by(kursnamn, akademiskt_ar, programstudent) %>% 
+    mutate(
+        totantal = sum(antal),
+        andel = (1 - antal / sum(antal)) * 100
+        ) %>% 
+    filter(betyg == "U", akademiskt_ar < 2017)
+
 godk_program %>% 
     filter(kursnamn == "Economics A") %>% 
     ggplot(aes(akademiskt_ar, totantal, color = programstudent)) + geom_line() + labs(title = "Antal studenter A kurs")
@@ -161,6 +160,25 @@ andelar_program %>%
     ) %>% 
     ggplot(aes(akademiskt_ar, andel, fill = betyg )) + 
     geom_area(alpha = 0.6) + labs(title = "Andel godkänd A kurs, enstaka kurs", x = "Akademiskt år")
+
+```
+
+## Kön
+
+- Män klarar studier sämre
+
+```{r}
+kursresult %>% 
+    filter(kursnamn == "Economics A", is.na(progr)) %>% 
+    group_by(kursnamn, akademiskt_ar, betyg, kvinna) %>% 
+    summarise(antal = n()) %>% 
+    group_by(kursnamn, akademiskt_ar, kvinna) %>% 
+    mutate(
+        totantal = sum(antal),
+        andel = (1 - antal / sum(antal)) * 100
+        ) %>% 
+    filter(betyg == "U", akademiskt_ar < 2016) %>% 
+    ggplot(aes(akademiskt_ar, andel, color = kvinna)) + geom_line() + labs(title = "Andel studenter som klarar A kurs")
 
 ```
 
@@ -329,5 +347,11 @@ godkprov %>%
     group_by(delkurs) %>% 
     tally() %>% 
     kable()
+```
+
+## Demografiska variabler
+
+```{r}
+kursresult %>% filter(kursnamn == "Economics A") %>% ggplot(aes(age, fill = female)) + geom_histogram(bins = 20)
 ```
 
