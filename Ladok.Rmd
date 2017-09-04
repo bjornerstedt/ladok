@@ -87,6 +87,28 @@ godk_program %>%
 
 ```
 
+## Olika program
+
+## Programstudenter
+
+Andelen programstudenter har minskat. Fler läser enstaka kurs.
+
+```{r}
+kursresult %>% 
+    mutate(progr = coalesce(progr, "Enstaka kurs")) %>% 
+    group_by(kursnamn, akademiskt_ar, betyg, progr) %>% 
+    summarise(antal = n()) %>% 
+    group_by(kursnamn, akademiskt_ar, progr) %>% 
+    mutate(
+        totantal = sum(antal),
+        andel = (1 - antal / sum(antal)) * 100
+        ) %>% 
+    filter(betyg == "U", akademiskt_ar < 2017) %>% 
+    filter(kursnamn == "Economics A") %>% 
+    ggplot(aes(akademiskt_ar, totantal, color = progr)) + geom_line() + labs(title = "Antal studenter A kurs")
+
+```
+
 ## Studietid
 
 Det tar lång tid att läsa.
