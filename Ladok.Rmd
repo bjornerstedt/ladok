@@ -374,6 +374,6 @@ godkprov %>%
 ## Demografiska variabler
 
 ```{r}
-kursresult %>% filter(kursnamn == "Economics A") %>% ggplot(aes(age, fill = female)) + geom_histogram(bins = 20)
+kursresult %>% filter(kursnamn == "Economics A") %>% ggplot(aes(alder, fill = kvinna)) + geom_histogram(bins = 20)
 ```
 
