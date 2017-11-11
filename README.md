@@ -15,3 +15,4 @@ Analysis of student grades
 1. Install RMySQL and dbplyr packages
 1. Install MySQL ODBC connector
 1. Put odbc.ini and odbcinst.ini in ~/Library/ODBC/ on Mac
+1. Modify .my.cnf and move to home directory

@@ -1,0 +1,39 @@
+---
+title: "Antagningsdata"
+output: html_notebook
+---
+
+
+```{r}
+library(tidyverse)
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/nekdata.rda")
+antagning = readRDS( "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning-ne.rds")
+
+```
+
+
+
+
+```{r}
+# ffgkurs = ffgkurs %>% filter(termin == 20171)
+
+test = left_join(antagning, ffgkurs, by = c("pnr", "kurs"))
+
+antagning %>% filter(resultat == "Antagen", is.na(ja_svar)) %>% tally
+# I båda
+antagning %>% filter(resultat == "Antagen", ja_svar == "Ja") %>% semi_join(ffgkurs, by = c("pnr", "kurs")) %>% tally
+# I Ladok med annan kurs:
+antagning %>% filter(resultat == "Antagen", ja_svar == "Ja") %>% semi_join(ffgkurs, by = c("pnr")) %>% tally
+# Antagna som inte finns i Ladok
+antagning %>% filter(resultat == "Antagen") %>% anti_join(ffgkurs, by = c("pnr", "kurs")) %>% group_by(resultat) %>% tally
+# Ladok vt2017 som finns i antagning
+ffgkurs %>% filter(termin == 20171) %>% semi_join(antagning, by = c("pnr", "kurs")) %>% tally
+# Samma pnr men annan kurs
+ffgkurs %>% filter(termin == 20171) %>% semi_join(antagning, by = c("pnr")) %>% tally
+# I ladok men inte i antagning
+ffgkurs %>% filter(termin == 20171) %>% anti_join(antagning, by = c("pnr", "kurs")) %>% tally
+# I Ladok ht2016 antagen 2017
+ffgkurs %>% filter(termin == 20162) %>% semi_join(antagning, by = c("pnr")) %>% tally
+
+```
+

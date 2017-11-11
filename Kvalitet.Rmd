@@ -1,0 +1,84 @@
+---
+title: "Kvalitet i undervisningen av nationalekonomi"
+author: "Jonas Björnerstedt"
+date: '`r Sys.Date()`'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Inledning
+
+Att redovisa arbetet med kvalitet i undervisning är inte en enkel uppgift. I denne redogörelse kommer vi därför först att diskutera vilka syften man kan ha för att mäta kvalitet och hur den kan mätas. 
+
+## Aktiviteter
+
+- Pedagogiskt internat med fokus på kvalitet
+- Pedagogiska projekt
+- Utarbetning av kursutvärderingar
+
+# Mått på kvalitet
+
+Mäter inte kvalitet, utan variabler som ofta är korrelerade med någon kvalitetsaspekt.
+
+Vilka syften kan kvalitetsmått ha?
+
+1. Vad kan förbättras? 
+    - Kräver detaljerade mått
+1. Mått jämfört med andra ämnen
+1. Hur förändras kvaliteten över tiden?
+    - Säkrare mått än att jämföra mellan discipliner
+
+Olika mått på kvalitet:
+
+- Undervisningstimmar med lärare
+    - med seminarielärare
+- Genomströmning
+- Antagningsbetyg 
+    - snitt eller lägst bland antagna
+- Bättre dokumentering och redovisning av kvalitet
+   
+- Kurslitteratur jämfört med andra
+- Enkät i efterhand
+- Kursutvärdering
+- Mått på kvalitetsarbete
+    - Utvecklingstimmar
+    - Lista av insatser 
+    - Extern bedömning
+
+# Redovisning och analys av kvalitetsmått
+
+
+# Kursutvärderingar
+
+Kursutvärderingar är ett viktigt verktyg för att analysera kvaliteten av kurser och delkurser. 
+
+Eftersom fokus ofta lätt hamnar väl mycket på kursutvärderingar som metod för att mäta och upprätthålla kvalitet i undervisningen är det viktigt att se dess brister
+
+- Premierar finslipande av kurser
+    - Att byta kursstruktur eller kurs ger lägre utvärderingar
+    - Studenter kan ofta inte välja kurser, därför  
+- Metodtunga (svåra) kurser får lägre betyg
+- Utvärderingar är känsliga för sammanhang
+    - Höga svarsfrekvenser är viktiga för att minska bortfallsproblematik
+    - Varierar med sammanhang
+- Studenten värdering är bara en del av kvaliteten
+    - Studenter kan värdera lätta kurser högre
+    - Ger intitament att ge lätta kurser
+    - En student kan inte förväntas ha överblick över alternativa kursupplägg
+
+## Utformning av kursutvärderingar
+
+- Datorbaserat formulär garanterar anonymitet
+    - Det gör det dock möjligt för en student att lämna in fler svar
+- En minskad valfrihet av delkurser gör att vi kan se till att det inte blir för få delatagare för att garantera anonymitet.
+    - Frågan hur man kan påminna de som inte svarat samtidigt 
+- Vårt förslag är att enkäten fylls i på sista föreläsningstillfället i en delkurs eller kurs
+    - Formuläret ska funka på mobiltelefon
+    - Det ska vara enkelt att fylla i text
+- Frågor bör utformas för både delkurs och kurs.
+
+### Frågor och deras syfte
+
