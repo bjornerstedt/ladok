@@ -4,6 +4,7 @@
 library(tidyverse)
 library(readxl)
 library(janitor)
+library(lubridate)
 
 cr_antagningstermin = function(år, termin) {
     col_types_ant = c("text", "text", "text", 
@@ -43,12 +44,12 @@ antagningNE = antagning %>%
     filter(str_sub(kurs_programkod, 5,6) == "NE") %>% 
     mutate(
         pnr = str_c(str_sub(personnummer, 3, 8), str_sub(personnummer, 10)),
-        BI = str_extract(str_extract(meritvärde, "BI (.*)"), "[\\d.]+"),
-        HP = str_extract(str_extract(meritvärde, "HP (.*)"), "[\\d.]+"),
-        HPGR = str_extract(str_extract(meritvärde, "HPGR (.*)"), "[\\d.]+"),
-        BIEX = str_extract(str_extract(meritvärde, "BIEX (.*)"), "[\\d.]+"),
-        BII = str_extract(str_extract(meritvärde, "BII (.*)"), "[\\d.]+"),
-        SA = str_extract(str_extract(meritvärde, "SA (.*)"), "[\\d.]+"),
+        BI = as.numeric( str_extract(str_extract(meritvärde, "BI (.*)"), "[\\d.]+")),
+        HP = as.numeric( str_extract(str_extract(meritvärde, "HP (.*)"), "[\\d.]+")),
+        HPGR = as.numeric( str_extract(str_extract(meritvärde, "HPGR (.*)"), "[\\d.]+")),
+        BIEX = as.numeric( str_extract(str_extract(meritvärde, "BIEX (.*)"), "[\\d.]+")),
+        BII = as.numeric( str_extract(str_extract(meritvärde, "BII (.*)"), "[\\d.]+")),
+        SA = as.numeric( str_extract(str_extract(meritvärde, "SA (.*)"), "[\\d.]+")),
         grundläggande_behörighet = str_to_title(grundläggande_behörighet)
     ) %>%
     mutate(
@@ -71,3 +72,5 @@ antagningNE = antagning %>%
 
 saveRDS(antagningNE, "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning-ne.rds")
 
+antagningProgram = antagning %>% 
+    filter(str_sub(kurs_programkod, 1,1) == "P")
