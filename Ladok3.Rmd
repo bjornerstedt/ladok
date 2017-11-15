@@ -1,0 +1,101 @@
+---
+title: "Ladok Resultat"
+author: "Jonas Björnerstedt"
+date: "`r Sys.Date()`"
+output:
+    pdf_document:
+        default
+    html_document:
+        df_print: paged
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+library(lubridate)
+library(knitr)
+library(stringr)
+load(file = "ladok2.Rdata")
+tidsintervall = c(2014, 2015)
+
+```
+
+
+## Vilka B/C kurser läser studenter? {.tiny}
+
+Totalt `r godkprov %>% filter(kursnamn != "Economics A") %>% tally() %>% as.numeric()` godkända studenter. Antal godkända per kurs under akademiska åren 2015 och 2016.
+
+```{r}
+godkprov %>% 
+    filter(kursnamn == "Economics B" | kursnamn == "Economics C", akademiskt_ar %in% tidsintervall ) %>% 
+    mutate(delkurs = str_replace(delkurs, " 1", "")) %>% 
+    group_by(delkurs, kursnamn) %>% 
+    summarise(antal = n()) %>% 
+    spread(kursnamn, antal, fill = 0) %>% 
+    mutate(Totalt = `Economics B` + `Economics C` ) %>% 
+    arrange(-Totalt) %>% 
+    kable()
+```
+
+I följande tabell undersöker vi hur många studenter som läser olika delkurser, hur många som tenterar och andelen studenter som klarar kursen. Tabellen anger genomsnittliga antal och procentandelar över hela perioden sedan 2007. Med totala antalet studenter menas antalet som tenterat en kurs. Studenter som suttit med men inte skrivit tenta är inte medräknade. För uppsatsen blir detta missvisande, eftersom handledaren förhoppningsvis ofta förhindrar att studenter examinerar underkänt. 
+
+```{r}
+roundmean = function(x) round(mean(x, na.rm = TRUE),1)
+
+godkprov %>% 
+    filter(kursnamn == "Economics B" | kursnamn == "Economics C" ) %>% 
+    mutate(
+        delkurs = str_replace(delkurs, " 1", ""),
+        delkurs = str_replace(delkurs, "Socio-Ec", "Socio-ec"),
+        delkurs = str_replace(delkurs, "Intermediär Mikroekonomi", "Intermediate Microeconomics"),
+        delkurs = str_replace(delkurs, "Optional .*:", ""),
+        delkurs = str_trim(delkurs)
+        ) %>% 
+    group_by(delkurs, akademiskt_ar, betyg) %>% 
+    summarise(antal = n()) %>% 
+    group_by(delkurs, akademiskt_ar) %>% 
+    mutate(
+        andel = 100 - round(antal / sum(antal) * 100, 0),
+        tot = sum(antal),
+        godkända = tot - antal
+    ) %>% 
+    group_by(delkurs) %>% 
+    filter(betyg == "U") %>% 
+    select(-betyg, -antal) %>% 
+    summarise_all(funs(roundmean)) %>% 
+    select(delkurs, godkända, totalt=tot, andel) %>% 
+    arrange(-andel) %>% 
+    kable()
+```
+
+## Masters
+
+```{r}
+godkprov %>% 
+    filter(kursnamn == "Masters" ) %>% 
+    mutate(
+        delkurs = str_replace(delkurs, "Advanced ", ""),
+        delkurs = str_replace(delkurs, " 2", ""),
+        delkurs = str_replace(delkurs, "Socio-Ec", "Socio-ec"),
+        delkurs = str_replace(delkurs, "Intermediär Mikroekonomi", "Intermediate Microeconomics"),
+        delkurs = str_replace(delkurs, "Optional .*:", ""),
+        delkurs = str_trim(delkurs)
+        ) %>% 
+    group_by(delkurs, akademiskt_ar, betyg) %>% 
+    summarise(antal = n()) %>% 
+    group_by(delkurs, akademiskt_ar) %>% 
+    mutate(
+        andel = 100 - round(antal / sum(antal) * 100, 0),
+        tot = sum(antal),
+        godkända = tot - antal
+    ) %>% 
+    group_by(delkurs) %>% 
+    filter(betyg == "U") %>% 
+    select(-betyg, -antal) %>% 
+    summarise_all(funs(roundmean)) %>% 
+    select(delkurs, godkända, totalt=tot, andel) %>% 
+    arrange(-andel) %>% 
+    kable()
+```

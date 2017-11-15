@@ -1,0 +1,12 @@
+name: ladok
+title: Ladok
+username: Jonas
+account: Jonas
+server: rstudio.sh.se
+hostUrl: http://rstudio.sh.se:3939/__api__
+appId: 12
+bundleId: 42
+url: http://rstudio.sh.se:3939/content/12/
+when: 1509004236.3881
+asMultiple: FALSE
+asStatic: FALSE

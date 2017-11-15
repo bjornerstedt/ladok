@@ -1,0 +1,380 @@
+---
+title: "Ladok Resultat"
+author: "Jonas Björnerstedt"
+date: "`r Sys.Date()`"
+output:
+  ioslides_presentation:
+    css: slides.css
+  slidy_presentation: default
+  beamer_presentation:
+    theme: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+library(lubridate)
+library(knitr)
+
+load(file = "ladok2.Rdata")
+
+```
+
+## Registrerade studenter
+
+Antalet studenter per akademiskt år är relativt konstant över tiden, med en ökning på ungefär 20 studenter.
+
+```{r}
+kursresult %>% 
+    filter(akademiskt_ar < 2017, akademiskt_ar > 2008) %>% 
+    group_by(akademiskt_ar) %>% 
+    summarise(antal = n()) %>% 
+    ggplot(aes(akademiskt_ar, antal)) + geom_line()  + geom_smooth(se = FALSE, method = "lm") + labs(title = "Registerade studenter")
+
+tidsintervall = c(2014, 2015)
+```
+
+## Studenter per kurs
+
+Andelen som läser på A nivå minskar sakta över tiden.
+
+```{r}
+kursresult %>% 
+    filter(akademiskt_ar < 2017) %>% 
+    group_by(kursnamn, akademiskt_ar) %>% 
+    summarise(antal = n()) %>% 
+    ggplot(aes(akademiskt_ar, antal, color = kursnamn)) + geom_line() + labs(title = "Registerade studenter per kurs")
+
+```
+
+## Programstudenter
+
+Andelen programstudenter har minskat. Fler läser enstaka kurs.
+
+```{r}
+godk_program = kursresult %>% 
+    mutate(programstudent = !is.na(progr)) %>% 
+    group_by(kursnamn, akademiskt_ar, betyg, programstudent) %>% 
+    summarise(antal = n()) %>% 
+    group_by(kursnamn, akademiskt_ar, programstudent) %>% 
+    mutate(
+        totantal = sum(antal),
+        andel = (1 - antal / sum(antal)) * 100
+        ) %>% 
+    filter(betyg == "U", akademiskt_ar < 2017)
+
+godk_program %>% 
+    filter(kursnamn == "Economics A") %>% 
+    ggplot(aes(akademiskt_ar, totantal, color = programstudent)) + geom_line() + labs(title = "Antal studenter A kurs")
+
+```
+
+## Olika program
+
+## Programstudenter
+
+Andelen programstudenter har minskat. Fler läser enstaka kurs.
+
+```{r}
+kursresult %>% 
+    mutate(progr = coalesce(progr, "Enstaka kurs")) %>% 
+    group_by(kursnamn, akademiskt_ar, betyg, progr) %>% 
+    summarise(antal = n()) %>% 
+    group_by(kursnamn, akademiskt_ar, progr) %>% 
+    mutate(
+        totantal = sum(antal),
+        andel = (1 - antal / sum(antal)) * 100
+        ) %>% 
+    filter(betyg == "U", akademiskt_ar < 2017) %>% 
+    filter(kursnamn == "Economics A") %>% 
+    ggplot(aes(akademiskt_ar, totantal, color = progr)) + geom_line() + labs(title = "Antal studenter A kurs")
+
+```
+
+## Studietid
+
+Det tar lång tid att läsa.
+
+Notera att det finns `r kursresult %>% filter(betyg != "U", kursnamn == "Economics A", duration < 0) %>% tally` studenter med slutdatum (idatum i godkkurs) före startdatum (idatum i ffgkurs)
+
+```{r}
+kursresult %>% 
+    filter(betyg != "U", kursnamn == "Economics A", duration > 0, akademiskt_ar <= tidsintervall[2]) %>% 
+    # group_by(kursnamn ) %>% 
+    mutate(duration = duration / 365) %>% 
+    ggplot(aes(duration)) + 
+        geom_histogram(binwidth = 0.5, center = 0.25) + 
+        labs(title = "Studietid A kurs", x = "År", y = "Antal" ) + 
+        scale_x_continuous(breaks = 1:10)
+```
+
+## Nollpresterare
+
+```{r}
+kursresult %>% 
+    mutate( nollpresterare = betyg == "U" & utot == 0 ) %>%  # De som inte tenterar alls
+    group_by(kursnamn, termindatum, nollpresterare) %>% 
+    summarise(antal = n()) %>% 
+    group_by(kursnamn, termindatum) %>% 
+    mutate(
+        andel = antal / sum(antal) * 100
+    ) %>% 
+    filter( year(termindatum) < 2017, kursnamn  != "Masters", nollpresterare) %>% 
+    ggplot(aes(termindatum, andel, color = kursnamn )) + 
+    geom_line() + 
+    labs(title = "Andel nollpresterare", x ="")
+
+
+```
+
+
+## Economics A - Kursresultat
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics A") %>% 
+    ggplot(aes(termindatum, antal, color = betyg )) + 
+    geom_line() + 
+    labs(title = "Antal godkänd A kurs", x ="Starttermin")
+
+```
+
+## Economics A - Andelar
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics A") %>% 
+    ggplot(aes(termindatum, andel, fill = betyg )) + 
+    geom_area(alpha = 0.6) + labs(title = "Andel godkänd A kurs", x ="Starttermin")
+
+```
+
+## Programstudenter
+
+Även för programstudenter minskar andelen godkända de senaste åren.
+
+```{r}
+andelar_program %>% 
+    filter(kursnamn == "Economics A", program) %>% 
+    ungroup() %>% 
+    select(-antal, -program) %>% 
+    spread(key = betyg, value = andel, fill = 0) %>% 
+    gather(betyg, andel,-kursnamn, -akademiskt_ar) %>% 
+    mutate(
+        betyg = factor(betyg, levels = c("U","VG","G"))
+    ) %>% 
+    ggplot(aes(akademiskt_ar, andel, fill = betyg )) + 
+    geom_area(alpha = 0.6) + labs(title = "Andel godkänd A kurs, program", x = "Akademiskt år")
+
+```
+
+## Enstaka kurs studenter
+
+För studenter som läser enstaka kurs minskar andelen godkända över hela perioden.
+
+```{r}
+andelar_program %>% 
+    filter(kursnamn == "Economics A", !program) %>% 
+    ungroup() %>% 
+    select(-antal, -program) %>% 
+    spread(key = betyg, value = andel, fill = 0) %>% 
+    gather(betyg, andel,-kursnamn, -akademiskt_ar) %>% 
+    mutate(
+        betyg = factor(betyg, levels = c("U","VG","G"))
+    ) %>% 
+    ggplot(aes(akademiskt_ar, andel, fill = betyg )) + 
+    geom_area(alpha = 0.6) + labs(title = "Andel godkänd A kurs, enstaka kurs", x = "Akademiskt år")
+
+```
+
+## Kön
+
+- Män klarar studier sämre
+
+```{r}
+kursresult %>% 
+    filter(kursnamn == "Economics A", is.na(progr)) %>% 
+    group_by(kursnamn, akademiskt_ar, betyg, kvinna) %>% 
+    summarise(antal = n()) %>% 
+    group_by(kursnamn, akademiskt_ar, kvinna) %>% 
+    mutate(
+        totantal = sum(antal),
+        andel = (1 - antal / sum(antal)) * 100
+        ) %>% 
+    filter(betyg == "U", akademiskt_ar < 2016) %>% 
+    ggplot(aes(akademiskt_ar, andel, color = kvinna)) + geom_line() + labs(title = "Andel studenter som klarar A kurs")
+
+```
+
+## Economics B - Kursresultat
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics B") %>% 
+    ggplot(aes(termindatum, antal, color = betyg )) + 
+    geom_line() + labs(title = "Antal godkänd B kurs")
+
+```
+
+## Economics B - Andelar
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics B") %>% 
+    select(-antal) %>% 
+    spread(key = betyg, value = andel, fill = 0) %>% 
+    gather(betyg, andel,-kursnamn, -termindatum) %>% 
+    mutate(
+        betyg = factor(betyg, levels = c("U","VG","G"))
+    ) %>% 
+    ggplot(aes(termindatum, andel, fill = betyg )) + 
+    geom_area(alpha = 0.6) + labs(title = "Andel godkänd B kurs")
+
+```
+
+## Economics C - Kursresultat
+
+```{r}
+andelar %>% 
+    filter(kursnamn == "Economics C") %>% 
+    ggplot(aes(termindatum, antal, color = betyg )) + 
+    geom_line() + labs(title = "Antal godkänd C kurs")
+
+```
+
+## Economics C - Andelar
+
+```{r}
+andelar %>% 
+    select(-antal) %>% 
+    filter(kursnamn == "Economics C") %>% 
+    spread(key = betyg, value = andel, fill = 0) %>% 
+    gather(betyg, andel,-kursnamn, -termindatum) %>% 
+    mutate(
+        betyg = factor(betyg, levels = c("U","VG","G"))
+    ) %>% 
+    ggplot(aes(termindatum, andel, fill = betyg )) + 
+    geom_area(alpha = 0.6) + labs(title = "Andel godkänd C kurs")
+
+```
+
+## Uppsats
+
+```{r}
+uppsats_tid = godkprov %>% 
+    filter(delkurs == "Essay") %>% 
+    mutate(
+        veckor = duration / 7,
+        mer_ar = duration > 365
+        ) 
+
+andel_mer = uppsats_tid %>% group_by(mer_ar) %>% summarise(antal = n()) %>% mutate(andel = antal/sum(antal))
+
+uppsats_tid %>% 
+    ggplot(aes(veckor)) + geom_histogram(binwidth = 10, center = 5) + labs(title = "Antal veckor för uppsats")
+```
+
+För `r round(andel_mer$andel[andel_mer$mer_ar]*100,1)` procent av studenterna tog det mer än ett år att bli färdig.
+
+## Vad saknas för de studenter som inte är klara med A kursen?
+
+```{r}
+icke_godkända = kursresult %>% 
+    filter(kursnamn == "Economics A", betyg == "U", akademiskt_ar %in% tidsintervall) %>% 
+    mutate(
+        program = !is.na(progr)
+    ) %>% 
+    select(pnr, kursid, program)
+```
+
+Totalt var `r icke_godkända %>% tally()` inte godkända på A kursen. Per delkurs var det:
+
+```{r}
+godkprov %>% 
+    mutate(
+        program = !is.na(progr)
+    ) %>% 
+    semi_join(icke_godkända, by = c("kursid", "pnr")) %>% 
+    group_by(delkurs) %>% 
+    tally() %>% 
+    kable()
+```
+
+## Hur många delkurser har de läst?
+
+```{r}
+utan_betyg = icke_godkända %>% 
+    anti_join(godkprov, by = c("pnr", "kursid")) %>% 
+    group_by(program) %>% 
+    tally() %>% 
+    mutate(delkursantal = 0)
+    
+personsaldo = godkprov %>% 
+    mutate(
+        program = !is.na(progr)
+    ) %>% 
+    semi_join(icke_godkända, by = c("kursid", "pnr")) %>% 
+    group_by(pnr, program) %>% 
+    summarise(delkursantal = n()) 
+
+med_betyg = personsaldo %>% 
+    group_by(delkursantal, program) %>% 
+    tally() 
+
+delkurstabell = bind_rows(utan_betyg, med_betyg) %>% 
+    mutate(program = if_else(program, "Program", "Enstaka kurs")) %>% 
+    spread(program, n) %>% 
+    mutate(
+        Totalt = `Enstaka kurs` + `Program`,
+        andel = round(Totalt / sum(Totalt) * 100, 1)
+    ) 
+
+andel_nästan = delkurstabell$andel[delkurstabell$delkursantal == 3]
+antal_inga = delkurstabell$`Enstaka kurs`[delkurstabell$delkursantal == 0]
+delkurstabell%>% 
+    kable()
+
+```
+
+Av de som inte är färdiga med A kursen, har ca `r andel_nästan` 
+percent bara en återstående kurs. Man kan notera att `r antal_inga ` studenter, majoriteten av de som inte lyckas med enstaka kurs, inte tenterar ett enda poäng.
+
+## Vilken kurs saknas för de som har en kurs kvar?
+
+```{r}
+godkprov %>% 
+    filter(kursnamn == "Economics A", akademiskt_ar == 2015 | akademiskt_ar == 2016) %>% 
+    semi_join(personsaldo %>% filter(delkursantal == 3), by = "pnr") %>% 
+    select(pnr, delkurs) %>% 
+    mutate(val = 1) %>% 
+    spread(delkurs,  val) %>% 
+    gather(delkurs, resultat, -pnr) %>% 
+    filter(is.na(resultat)) %>% 
+    group_by(delkurs) %>% 
+    tally() %>% 
+    kable()
+```
+
+## Demografiska variabler
+
+```{r}
+kursresult %>% filter(kursnamn == "Economics A") %>% ggplot(aes(alder, fill = kvinna)) + geom_histogram(bins = 20)
+```
+
+## Vilka B/C kurser läser studenter? {.tiny}
+
+Totalt `r godkprov %>% filter(kursnamn != "Economics A") %>% tally() %>% as.numeric()` godkända studenter. Antal godkända per kurs under akademiska åren 2015 och 2016.
+
+```{r}
+library(stringr)
+godkprov %>% 
+    filter(kursnamn == "Economics B" | kursnamn == "Economics C", akademiskt_ar %in% tidsintervall ) %>% 
+    mutate(delkurs = str_replace(delkurs, " 1", "")) %>% 
+    group_by(delkurs, kursnamn) %>% 
+    summarise(antal = n()) %>% 
+    spread(kursnamn, antal, fill = 0) %>% 
+    mutate(Totalt = `Economics B` + `Economics C` ) %>% 
+    arrange(-Totalt) %>% 
+    kable()
+```
