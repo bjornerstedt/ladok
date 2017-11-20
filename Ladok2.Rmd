@@ -20,6 +20,8 @@ library(lubridate)
 library(knitr)
 library(stringr)
 library(forcats)
+library(readxl)
+
 load(file = "ladok2.Rdata")
 ```
 ## Antagning
@@ -68,6 +70,23 @@ antagningsdata %>% ungroup() %>%
     ggplot(aes(antagningsdatum, betyg, color = ämne)) + geom_line() + labs(title = "Antagningsbetyg enstaka kurs per ämne", x="", y = "Betyg (HP)")
 ```
 
+Antagningsbetyg med också program inkluderade i NEK. Notera att 
+
+```{r}
+KurserProgram =
+    read_excel("~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/KurserProgram.xlsx") %>% 
+    filter(Nek_kurs == 1) %>% 
+    distinct(Kod)
+
+antagningsdata %>% ungroup() %>% 
+    filter(kurs_programkod %in% KurserProgram$Kod, antagningsgrupp == "BI", antagen) %>% 
+    mutate(program = str_detect(kurs_programkod, "^P")) %>% 
+    group_by(antagningsdatum, program) %>% 
+    summarise(betyg = mean(antagningsbetyg)) %>% 
+    ggplot(aes(antagningsdatum, betyg, color = program)) + geom_line() + labs(title = "Genomsnittligt Antagningsbetyg NE", x="", y = "Betyg (BI)")
+
+```
+
 Antalet sent sökande
 
 ```{r}
@@ -100,7 +119,7 @@ ladokdata %>%
 
 ```{r}
 ladokdata %>% 
-    filter( akademiskt_ar <= 2016) %>% 
+    filter( ar <= 2016, year(antagningsdatum)<2017) %>% 
     mutate( färdig = betyg == "G" | betyg == "VG" ) %>% 
     group_by(antagningsdatum, kursnamn, färdig) %>% 
     tally() %>% 
