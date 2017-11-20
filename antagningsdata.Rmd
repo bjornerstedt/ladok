@@ -2,12 +2,12 @@
 title: "Antagningsdata"
 author: "Jonas Björnerstedt"
 date: '`r Sys.Date()`'
-output: pdf_document
+output: html_notebook
 ---
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r, message=FALSE}
@@ -15,135 +15,148 @@ library(tidyverse)
 library(stringr)
 library(knitr)
 load("~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/ladok2.Rdata")
-antagning = readRDS( "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning-ne.rds") 
-antagna = antagning %>% filter(resultat == "Antagen", antagningsår < 2017 |  antagningsår == 2017 & antagningstermin ==1)
-antagning18 = antagning %>% filter(antagningsår == 2018)
-ladok = kursresult %>% filter(ar > 2012,  is.na(progr)) %>% rename(kurs = kursid)
+antagning = readRDS( "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning-ne.rds")  %>% 
+    filter(antagningsår < 2017 |  antagningsår == 2017 & antagningstermin ==1, antagningsår > 2013) 
+# Pga att det kan dröja mellan antagning och studier , skippa 2013
+ladok = kursresult %>% filter(ar > 2013) %>% rename(kurs = kursid) %>% mutate( program = !is.na(progr))
 # ladok = kursresult %>% filter(ar > 2012, kursnamn != "Masters", is.na(progr)) %>% rename(kurs = kursid)
-antagningProgram = readRDS( "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning.rds")  %>% 
-    filter(str_sub(kurs_programkod, 1,1) == "P")
+antagningTot = readRDS( "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning.rds") 
+
+antagningProgram = antagningTot %>% filter(str_sub(kurs_programkod, 1,1) == "P")
 platser = readRDS( "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/platser.rds") %>% arrange(termin, titel, år)
 
 ```
 
-# Antagning och platsantal 
-
-I tabellerna nedan är antagningsuppgifter för vårterminer de två senaste åren.
-
-## Nationalekonomi A 
-
 ```{r}
-
-pt = platser # %>% rename(prio1 = sökande_prio1, sök_tot = sökande_totalt, platser = platser_totalt )
-pt %>% filter(termin == "vt", titel == "Nationalekonomi A") %>% select(-termin, -titel, -poäng) %>% kable
+antagningsdata = 
+    readRDS( "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning.rds") %>% 
+    arrange(pnr, anmälningsdatum) %>% 
+    filter(antagen | reserv) %>%
+    group_by(pnr) %>% 
+    mutate(rn = row_number() ) %>% 
+    filter(rn== 1)
 ```
 
-## Nationalekonomi B
-
 ```{r}
-pt %>% filter(termin == "vt", titel == "Economics B") %>% select(-termin, -titel, -poäng)  %>% kable
+ladok %>% filter(kursnamn != "Masters") %>% anti_join(antagningTot %>% 
+    filter(antagen | reserv), by = "pnr") %>% group_by(kursnamn) %>% tally()
 ```
 
-## Nationalekonomi C
-
 ```{r}
-pt %>% filter(termin == "vt", titel == "Economics C") %>% select(-termin, -titel, -poäng)  %>% kable
+ladoktot = ladok %>% filter(kursnamn != "Masters") %>% left_join(antagningsdata, by = "pnr")
+ladoktot %>% filter(is.na(efternamn)) %>% group_by(ar) %>% tally
 ```
 
-# Sökande 2018, Nationalekonomi A
-
-Lite deskriptiv analys av sökande 2018. 
-
 ```{r}
-antagning18 %>% group_by(resultat) %>% tally %>% kable
+antagning %>% filter(antagen) %>% distinct(kurs_programkod)
 ```
 
-Behöriga sökare per kategori i grundläggande behörighet
 ```{r}
-akurs = antagning18 %>% filter(benämning == "Nationalekonomi A", resultat != "Obehörig") 
-akurs %>% group_by(behörighet) %>% tally %>% kable
+    ladok %>% left_join(antagningTot %>% select(pnr, kurs_programkod), by = c("pnr")) %>% anti_join(antagning %>% filter(antagen), by = c("pnr")) %>% distinct(kurs_programkod)
 
 ```
 
-Prio i sökning
-```{r}
-akurs %>% ggplot(aes(prio)) + geom_histogram(aes(y=cumsum(..count..)), binwidth = 1) + labs(title = "Antal sökande med prio högre än nivå", y = "Antal")
-```
-
-Prio i sökning
-```{r}
-akurs %>% ggplot(aes( prio, BI)) + geom_point() + labs(title = "BI Betyg och Prio")
-```
-
-Prio i sökning verkar inte korrelerat med högskolepoäng.
 
 ```{r}
-akurs %>% filter(prio <11) %>% ggplot(aes(prio, HP)) + geom_point() + geom_smooth(method = "lm") + labs(title = "HP Betyg och Prio")
-```
-
-Betyg för behöriga sökande 
-
-```{r}
-akurs %>% select( BI, HP, HPGR, BIEX, BII, SA) %>% gather(key = betyg, value = merit, na.rm = TRUE) %>% group_by(betyg) %>% summarise(antal = n(), medelvärde = round(mean(merit),2), min = min(merit) ) %>% kable
+antagning %>% filter(resultat == "Antagen") %>% group_by(pnr, kurs_programkod) %>% mutate(ans = n(), f = row_number()) %>% filter(ans > 1) %>% arrange(pnr, anmälningsdatum) 
 
 ```
 
-Fördeling BI betyg:
+## Koppling till Ladok
+
+Hitta A kursare som finns i Ladok i NyA
 
 ```{r}
-akurs %>% ggplot(aes(BI)) + geom_histogram(aes(y=cumsum(..count..)), binwidth = 0.5) + labs(title = "Antal studenter med BI betyg lägre än nivå", y = "Antal")
+ladoknm = ladok %>% filter(kursnamn != "Masters") 
+bind_rows(
+    ladoknm %>% anti_join(antagning, by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Nya"),
+    ladoknm %>% anti_join(bind_rows(antagning, antagningProgram), by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Nya Inkl program"),
+    ladoknm %>% anti_join(antagningTot, by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Nya alls"),
+    ladoknm %>% anti_join(antagning %>% filter(antagen), by = c("pnr")) %>% tally %>% mutate(dataset = "Ej Antagen i Nya"),
+    ladoknm %>% anti_join(antagning %>% filter(antagen | reserv), by = c("pnr")) %>% tally %>% mutate(dataset = "Ej Antagen eller reserv i Nya"),
+    ladoknm %>% filter(kurs == "1001NE") %>% anti_join(antagning %>% filter(antagen | reserv), by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Nya")
+) %>% select(dataset,n) 
+```
+
+Vilka finns inte alls? År 2013 var det en del.
+
+```{r}
+ladoknm %>% anti_join(antagningTot, by = c("pnr"))
+```
+
+
+```{r}
+noladok = antagning %>% filter(antagen, antagningsår > 2013, kurs == "1001NE") %>% 
+        anti_join(ladok, by = c("pnr")) 
+noladok %>% group_by(antagningsår, antagningstermin) %>% tally 
 
 ```
 
-Fördeling HP betyg:
-
-```{r}
-akurs %>% ggplot(aes(HP)) + geom_histogram(aes(y=cumsum(..count..)), binwidth = .05) + labs(title = "Antal studenter med HP lägre än nivå", y = "Antal")
-
-```
-
-# Koppling till Ladok
+# gammalt
 
 Hur många finns i både Ladok och NyA, samma personnummer och kurs?
 
 ```{r}
 bind_rows(
-antagna %>% semi_join(ladok, by = c("pnr", "kurs")) %>% tally %>% mutate(dataset = "Nya & Ladok"),
-antagna %>% anti_join(ladok, by = c("pnr", "kurs")) %>% tally %>% mutate(dataset = "Ej i Ladok"),
-ladok %>% semi_join(antagna, by = c("pnr", "kurs")) %>% tally %>% mutate(dataset = "Ladok & Nya"),
-ladok %>% anti_join(antagna, by = c("pnr", "kurs")) %>% tally %>% mutate(dataset = "Ej i Nya")
-) %>% select(dataset,n) %>% kable
+    antagning %>% filter(antagen) %>% semi_join(ladok, by = c("pnr")) %>% tally %>% mutate(dataset = "Nya & Ladok"),
+    antagning %>% filter(antagen) %>% anti_join(ladok, by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Ladok"),
+    ladok %>% semi_join(antagning, by = c("pnr")) %>% tally %>% mutate(dataset = "Ladok & Nya"),
+    ladok %>% anti_join(antagning, by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Nya")
+) %>% select(dataset,n) 
 ```
 
 Hur många finns i både Ladok och NyA, samma personnummer ?
 
 ```{r}
 bind_rows(
-antagna %>% semi_join(ladok, by = c("pnr")) %>% tally %>% mutate(dataset = "Nya & Ladok"),
-antagna %>% anti_join(ladok, by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Ladok"),
-ladok %>% semi_join(antagna, by = c("pnr")) %>% tally %>% mutate(dataset = "Ladok & Nya"),
-ladok %>% anti_join(antagna, by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Nya"), 
-ladok %>% anti_join(bind_rows(antagna, antagningProgram), by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Nya eller program")
-) %>% select(dataset,n) %>% kable
+    antagning %>% semi_join(ladok, by = c("pnr")) %>% tally %>% mutate(dataset = "Nya & Ladok"),
+    antagning %>% anti_join(ladok, by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Ladok"),
+    ladok %>% semi_join(antagning, by = c("pnr")) %>% tally %>% mutate(dataset = "Ladok & Nya"),
+    ladok %>% anti_join(antagning, by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Nya"), 
+    ladok %>% anti_join(bind_rows(antagning %>% filter(antagen, antagningsår < 2017 |  antagningsår == 2017 & antagningstermin ==1), antagningProgram), by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Nya eller program")
+) %>% select(dataset,n) 
 ```
 
-Vilka är antagna men finns ej i Ladok?
+Med pnr och kurs:
 
 ```{r}
-bara_nya = antagna %>% anti_join(ladok, by = c("pnr")) %>% mutate(antagningstermin = c("vt","ht")[antagningstermin])
-bara_nya %>% group_by(antagningsår, antagningstermin) %>% tally %>% spread(antagningstermin, n) %>% select(antagningsår, vt, ht) %>% kable
+bind_rows(
+    antagning %>% semi_join(ladok, by = c("pnr", "kurs")) %>% tally %>% mutate(dataset = "Nya & Ladok"),
+    antagning %>% anti_join(ladok, by = c("pnr", "kurs")) %>% tally %>% mutate(dataset = "Ej i Ladok"),
+    ladok %>% semi_join(antagning, by = c("pnr", "kurs")) %>% tally %>% mutate(dataset = "Ladok & Nya"),
+    ladok %>% anti_join(antagning, by = c("pnr", "kurs")) %>% tally %>% mutate(dataset = "Ej i Nya"), 
+    ladok %>% anti_join(bind_rows(antagning, antagningProgram), by = c("pnr")) %>% tally %>% mutate(dataset = "Ej i Nya eller program")
+) %>% select(dataset,n)
+```
+
+Vilka är antagning men finns ej i Ladok?
+
+```{r}
+nya_ladok = antagning %>% filter(kurs == "1001NE") %>% semi_join(ladok, by = c("pnr")) %>% mutate(antagningstermin = c("vt","ht")[antagningstermin])
+bara_nya = antagning %>% filter(kurs == "1001NE") %>% anti_join(ladok, by = c("pnr")) %>% mutate(antagningstermin = c("vt","ht")[antagningstermin])
+bara_nya %>% group_by(antagningsår, antagningstermin) %>% tally %>% spread(antagningstermin, n) %>% select(antagningsår, vt, ht) 
 
 ```
 
 Det finns ganska många personnummer i Ladok som inte finns i antagningsdata i Nya
 
 ```{r}
-bara_ladok = ladok %>% anti_join(antagna, by = c("pnr")) %>% 
+bara_ladok = ladok %>% anti_join(bind_rows(antagning, antagningProgram), by = c("pnr")) %>% 
     rename(antagningsår = ar, antagningstermin = terminid) %>% 
     mutate(antagningstermin = c("vt","ht")[antagningstermin])
 bara_ladok %>% group_by(antagningsår, antagningstermin) %>% tally %>% 
     spread(antagningstermin, n) %>% select(antagningsår, vt, ht) %>% kable
 ```
 
+Dubbletter finns i antagning:
 
+```{r}
+antagning %>% group_by(pnr, kurs) %>% tally %>% rename(x = n)  %>% group_by(x) %>% tally
+multiant = antagning %>% group_by(pnr, kurs) %>% mutate(ct = n(), la = last(ct)) %>% filter(ct > 2) %>% arrange(pnr, antagningsår)
+```
 
+I ladok är inga dubbletter: 
+
+```{r}
+ladok %>% group_by(pnr, kurs) %>% tally %>% rename(x = n)  %>% group_by(x) %>% tally
+```

@@ -1,0 +1,105 @@
+---
+title: "Antagningsdata"
+author: "Jonas Björnerstedt"
+date: '`r Sys.Date()`'
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(stringr)
+library(knitr)
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/ladok2.Rdata")
+antagning = readRDS( "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning-ne.rds") 
+antagna = antagning %>% filter(resultat == "Antagen", antagningsår < 2017 |  antagningsår == 2017 & antagningstermin ==1)
+antagning18 = antagning %>% filter(antagningsår == 2018)
+ladok = kursresult %>% filter(ar > 2012,  is.na(progr)) %>% rename(kurs = kursid)
+# ladok = kursresult %>% filter(ar > 2012, kursnamn != "Masters", is.na(progr)) %>% rename(kurs = kursid)
+antagningProgram = readRDS( "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning.rds")  %>% 
+    filter(str_sub(kurs_programkod, 1,1) == "P")
+platser = readRDS( "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/platser.rds") %>% arrange(termin, titel, år)
+
+```
+
+# Antagning och platsantal 
+
+I tabellerna nedan är antagningsuppgifter för vårterminer de två senaste åren.
+
+## Nationalekonomi A 
+
+```{r}
+
+pt = platser # %>% rename(prio1 = sökande_prio1, sök_tot = sökande_totalt, platser = platser_totalt )
+pt %>% filter(termin == "vt", titel == "Nationalekonomi A") %>% select(-termin, -titel, -poäng) %>% kable
+```
+
+## Nationalekonomi B
+
+```{r}
+pt %>% filter(termin == "vt", titel == "Economics B") %>% select(-termin, -titel, -poäng)  %>% kable
+```
+
+## Nationalekonomi C
+
+```{r}
+pt %>% filter(termin == "vt", titel == "Economics C") %>% select(-termin, -titel, -poäng)  %>% kable
+```
+
+# Sökande 2018, Nationalekonomi A
+
+Lite deskriptiv analys av sökande 2018. 
+
+```{r}
+antagning18 %>% group_by(resultat) %>% tally %>% kable
+```
+
+Behöriga sökare per kategori i grundläggande behörighet
+```{r}
+akurs = antagning18 %>% filter(benämning == "Nationalekonomi A", resultat != "Obehörig") 
+akurs %>% group_by(behörighet) %>% tally %>% kable
+
+```
+
+Prio i sökning
+```{r}
+akurs %>% ggplot(aes(prio)) + geom_histogram(aes(y=cumsum(..count..)), binwidth = 1) + labs(title = "Antal sökande med prio högre än nivå", y = "Antal")
+```
+
+Prio i sökning
+```{r}
+akurs %>% ggplot(aes( prio, BI)) + geom_point() + labs(title = "BI Betyg och Prio")
+```
+
+Prio i sökning verkar inte korrelerat med högskolepoäng.
+
+```{r}
+akurs %>% filter(prio <11) %>% ggplot(aes(prio, HP)) + geom_point() + geom_smooth(method = "lm") + labs(title = "HP Betyg och Prio")
+```
+
+Betyg för behöriga sökande 
+
+```{r}
+akurs %>% select( BI, HP, HPGR, BIEX, BII, SA) %>% gather(key = betyg, value = merit, na.rm = TRUE) %>% group_by(betyg) %>% summarise(antal = n(), medelvärde = round(mean(merit),2), min = min(merit) ) %>% kable
+
+```
+
+Fördeling BI betyg:
+
+```{r}
+akurs %>% ggplot(aes(BI)) + geom_histogram(aes(y=cumsum(..count..)), binwidth = 0.5) + labs(title = "Antal studenter med BI betyg lägre än nivå", y = "Antal")
+
+```
+
+Fördeling HP betyg:
+
+```{r}
+akurs %>% ggplot(aes(HP)) + geom_histogram(aes(y=cumsum(..count..)), binwidth = .05) + labs(title = "Antal studenter med HP lägre än nivå", y = "Antal")
+
+```
+
+

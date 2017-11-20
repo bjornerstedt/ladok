@@ -36,12 +36,7 @@ antagning = bind_rows(antagning, cr_antagningstermin(18, 1))
 antagning = antagning %>% 
     select(-Anmälningskod) %>%
     mutate(Anmälningsdatum = ymd(Anmälningsdatum)) %>%
-    clean_names()
-    
-saveRDS(antagning, "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning.rds")
-
-antagningNE = antagning %>% 
-    filter(str_sub(kurs_programkod, 5,6) == "NE") %>% 
+    clean_names() %>% 
     mutate(
         pnr = str_c(str_sub(personnummer, 3, 8), str_sub(personnummer, 10)),
         BI = as.numeric( str_extract(str_extract(meritvärde, "BI (.*)"), "[\\d.]+")),
@@ -50,10 +45,21 @@ antagningNE = antagning %>%
         BIEX = as.numeric( str_extract(str_extract(meritvärde, "BIEX (.*)"), "[\\d.]+")),
         BII = as.numeric( str_extract(str_extract(meritvärde, "BII (.*)"), "[\\d.]+")),
         SA = as.numeric( str_extract(str_extract(meritvärde, "SA (.*)"), "[\\d.]+")),
-        grundläggande_behörighet = str_to_title(grundläggande_behörighet)
+        grundläggande_behörighet = str_to_title(grundläggande_behörighet),
+        # reservnummer = str_extract(reservnummer, "+* (0)"),
+        reserv = (str_sub(resultat, 1, 6) == "Reserv"), 
+        antagen = (resultat == "Antagen") 
     ) %>%
+    separate(reservnummer, into = c("antagningsgrupp", "antagningsbetyg"), remove = FALSE) %>% 
     mutate(
-        `grundläggande_behörighet` = str_to_title(grundläggande_behörighet),
+        antagningsbetyg = as.numeric(antagningsbetyg),
+        antagningsbetyg = coalesce(antagningsbetyg, -1),
+        antagningsgrupp = coalesce(antagningsgrupp, ""),
+        antagningsbetyg = if_else( antagningsbetyg == 0, 
+            as.numeric( str_extract(str_extract(meritvärde, str_c(antagningsgrupp, " (.*)")), "[\\d.]+")),
+            -1)
+    ) %>% 
+    mutate(
         `behörighet` = str_extract(grundläggande_behörighet, "[:alpha:]+"),
         behörighet = str_replace(behörighet, "sprogrammet", ""),
         behörighet = str_replace(behörighet, "programmet", ""),
@@ -68,9 +74,19 @@ antagningNE = antagning %>%
             "Annan"
         )
     ) %>% 
-    rename(kurs = kurs_programkod)
+    arrange(pnr, anmälningsdatum)
 
-saveRDS(antagningNE, "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning-ne.rds")
+saveRDS(antagning, "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning.rds")
+
+KurserProgram =
+    read_excel("~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/KurserProgram.xlsx") %>% 
+    filter(Nek_kurs == 1) %>% 
+    distinct(Kod)
+
+saveRDS(antagning 
+    %>% filter(kurs_programkod %in% KurserProgram$Kod), 
+    #  %>% filter(str_sub(kurs_programkod, 5,6) == "NE"),
+    "~/Library/Mobile Documents/com~apple~CloudDocs/Work/data/admin/antagning-ne.rds")
 
 antagningProgram = antagning %>% 
     filter(str_sub(kurs_programkod, 1,1) == "P")
