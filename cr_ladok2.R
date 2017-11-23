@@ -110,14 +110,14 @@ andelar_program = kursresult %>%
     mutate(
         program = !is.na(progr)
     ) %>% 
-    group_by(kursnamn, akademiskt_ar, program, betyg) %>% 
+    group_by(kursnamn, termindatum, program, betyg) %>% 
     summarise(antal = n()) %>% 
-    group_by(kursnamn, akademiskt_ar, program) %>% 
+    group_by(kursnamn, termindatum, program) %>% 
     mutate(
         andel = antal / sum(antal) * 100,
         betyg = factor(betyg, levels = c("U","VG","G"))
     ) %>% 
-    filter( akademiskt_ar < 2017)
+    filter( year(termindatum) < 2017)
 
 save(ffgkurs, godkprov, kursresult, andelar, andelar_program, andelar_prov,
     file = "ladok2.Rdata")

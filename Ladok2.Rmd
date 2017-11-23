@@ -50,27 +50,38 @@ ladokdata = kursresult %>%
     filter(antagen | reserv), by = "pnr") 
 ```
 
-Antagningsbetyg enstaka kurs på gymnasiebetyg
+## Antagningsbetyg enstaka kurs på gymnasiebetyg
+
+Statsvetenskap och Nationalekonomi har lägst antagningsbetyg. Betyg är beräknade som det lägsta
+antagna betyget per antagningsomgång i betygskategorin.
 
 ```{r}
 antagningsdata %>% ungroup() %>% 
     filter(!str_detect(kurs_programkod, "^P"), antagningsgrupp == "BI", antagen) %>% 
+    # filter(ämne != "JU") %>% 
     group_by(antagningsdatum, ämne) %>% 
     summarise(betyg = min(antagningsbetyg)) %>% 
-    ggplot(aes(antagningsdatum, betyg, color = ämne)) + geom_line() + labs(title = "Antagningsbetyg enstaka kurs per ämne", x="", y = "Betyg (BI)")
+    mutate(nekbetyg = if_else(ämne == "NE", betyg, NA_real_)) %>% 
+    ggplot(aes(antagningsdatum, betyg, color = ämne),size=0.5) + 
+    geom_line(aes(antagningsdatum, nekbetyg), size=1.5) + geom_line( ) + 
+    labs(title = "Antagningsbetyg gymnasiebetyg enstaka kurs per ämne", x="", y = "Betyg (BI)")
 ```
 
-Antagningsbetyg enstaka kurs på högskoleprovet
+## Antagningsbetyg enstaka kurs på högskoleprovet
 
 ```{r}
 antagningsdata %>% ungroup() %>% 
     filter(!str_detect(kurs_programkod, "^P"), antagningsgrupp == "HP", antagen) %>% 
+    filter(ämne != "JU") %>% 
     group_by(antagningsdatum, ämne) %>% 
     summarise(betyg = min(antagningsbetyg)) %>% 
-    ggplot(aes(antagningsdatum, betyg, color = ämne)) + geom_line() + labs(title = "Antagningsbetyg enstaka kurs per ämne", x="", y = "Betyg (HP)")
+    mutate(nekbetyg = if_else(ämne == "NE", betyg, NA_real_)) %>% 
+    ggplot(aes(antagningsdatum, betyg, color = ämne)) + 
+    geom_line(aes(antagningsdatum, nekbetyg), size=1.5) + geom_line() + 
+    labs(title = "Antagningsbetyg Högskoleprov enstaka kurs per ämne", x="", y = "Betyg (HP)")
 ```
 
-Antagningsbetyg med också program inkluderade i NEK. Notera att 
+Antagningsbetyg med också program inkluderade i NEK. 
 
 ```{r}
 KurserProgram =
@@ -87,17 +98,83 @@ antagningsdata %>% ungroup() %>%
 
 ```
 
-Antalet sent sökande
+## Antalet sent sökande
 
 ```{r}
 antagningsdata %>% ungroup() %>% 
     filter(!str_detect(kurs_programkod, "^P"), antagningsgrupp == "SA") %>% 
     group_by(antagningsdatum, ämne) %>% 
     summarise(antal = n()) %>% 
-    ggplot(aes(antagningsdatum, antal, color = ämne )) + geom_line() + labs(title = "Antal sena ansökningar  per ämne", x="", y = "Antal")
+    group_by(antagningsdatum) %>% 
+    mutate(andel = antal / sum(antal) * 100) %>% 
+    mutate(nekandel = if_else(ämne == "NE", andel, NA_real_)) %>% 
+    ggplot(aes(antagningsdatum, andel, color = ämne )) + 
+    geom_line(aes(antagningsdatum, nekandel), size=1.5) + 
+    geom_line() + 
+    labs(title = "Andel sena ansökningar (SA) per ämne", x="", y = "Andel (SA) procent")
 ```
 
-Andelen nollpresterare per antagningskategori
+# Antagning och resultat (i Ladok)
+
+Processen för antagning och godkännande över tiden:
+
+steg | kategori | kommentar
+----- | ------------- | ---------------------------------------------------------------
+`r i = 1; i` | Ansökan i tid | Betyg
+`r i = i + 1; i` | Sen ansökan | Anmälningsordning
+`r i = i + 1; i` | Antagning 1 | De som sökt i tid
+`r i = i + 1; i` | Svar     | Säger ja/nej till plats
+`r i = i + 1; i` | Antagning 2 | Reserver sedan Sena ansökningar i turordning
+`r i = i + 1; i` | Svar     | Säger ja/nej till plats
+`r i = i + 1; i` | Lokal antagning | Studenter erbjuts plats innan kursstart (Registrerat i NyA?)
+`r i = i + 1; i` | Svar     | Säger ja/nej till plats
+`r i = i + 1; i` | Ladok  | Registrerad i Ladok (Notera att det är färre än som tidigare svarat ja)
+`r i = i + 1; i` | Avanmälan | Student avbryter studier
+`r i = i + 1; i` | Tenterat | Har deltagit i skrivning (eventuellt med betyg U)
+`r i = i + 1; i` | Godkänd | Godkänd på någon delkurs
+`r i = i + 1; i` | Klar | Godkänd på hela kursen
+
+överintag i f
+
+### HÅS ekonomi
+
+För att förenkla utgår vi här från att HÅS beräknas delkurs. Eftersom 
+
+kategori | kommentar
+----------- | -----------
+$R$ | antalet registrerade
+$A$ | antalet avregistrerade (tre veckor efter kursstart)
+$H$ | antalet HÅS
+$G$ | Summa godkända individer över alla delkurser 
+$\pi$ | Ämnets intäkter
+$p_{HÅS}$ | Ersättning för en HÅS = 21 279 kr 2016
+$p_{HÅP}$ | Ersättning för en HÅP = 11 154 kr 2016
+
+Jag har noterat följande ekvation från Djurönäset. extern och intern prislapp (strunta i OH - inter)
+
+$$\pi =  \min(R - A, H) * p_{HÅS} + \frac{7.5 * G}{60*(R-A)} * H * p_{HÅP}$$
+
+Vi har $8G \le F - A$ och
+
+$$\frac{d\pi}{dR}= k  (\frac{dG}{dR}(R-A) - G)$$
+
+med en konstant $k>0$ Detta uttryck är negativt om den som antas på marginalen har sämre godkännandegrad än den genomsnittlige.
+
+Vi har ungefär $p_{HÅS} \approx 2 * p_{HÅP}$. Låt $g$ vara den genomsnittliga andelen som klarar kurser För $R - A > H$ gäller då
+
+$$\pi \approx H * p_{HÅP} (2 + \frac{g*8*(R-A)}{8*(R-A)})=  H * p_{HÅP} (2 + g)$$
+
+```{r, results='asis'}
+dp = 0.1/(2 + 0.5 + 0.1)*100
+```
+En ökning av $g$ med 10% innebär en intäktsökning på $\frac{0.1}{2 + g + 0.1}$. Med en ökning av genomströmningen från 50 till 60 procent 
+ökar budgeten med `r round(dp, 1)` procent eller `r round(dp * 238 * 11154 * 1e-6, 1)` Mkr. Det motsvarar en väsentlig del av de nedskärningar
+som förväntas framöver. 
+
+## Sena ansökningar
+
+Andelen nollpresterare per antagningskategori. Det som är anmärkningsvärt är att nästan en tredjedel av de som sökt sent 
+är nollpresterare (näst sista raden).
 
 ```{r}
 ladokdata %>% 
@@ -117,6 +194,28 @@ ladokdata %>%
     
 ```
 
+Man kan också se att andelen som blir färdiga med en kurs är mycket lägre för de som söker sent.
+
+```{r}
+ladokdata %>% 
+    filter( ar <= 2016, year(antagningsdatum)<2017) %>% 
+    mutate( färdig = betyg == "G" | betyg == "VG" ) %>% 
+    group_by(antagningsgrupp, färdig) %>% 
+    tally() %>% 
+    mutate(
+        färdig = if_else(färdig, "Färdig", "Ofärdig")
+        ) %>% 
+    spread(färdig, n, fill = 0) %>% 
+    mutate(
+        Totalt = Färdig + Ofärdig,
+        Andel_Färdig = round(Färdig/Totalt * 100, 0)
+    ) %>% 
+    select(-Ofärdig) %>% 
+    kable()
+    
+```
+
+
 ```{r}
 ladokdata %>% 
     filter( ar <= 2016, year(antagningsdatum)<2017) %>% 
@@ -134,7 +233,6 @@ ladokdata %>%
     select(-Ofärdig) %>% 
     ggplot(aes(antagningsdatum, Andel_Färdig, color = kursnamn)) + geom_line()   
 ```
-
 
 Reserver verkar inte göra mycket sämre än Antagna
 
@@ -157,6 +255,9 @@ ladokdata %>%
     kable()
     
 ```
+
+# Resultat till Djurönäset
+
 ## Registrerade studenter
 
 Antalet studenter per akademiskt år är relativt konstant över tiden, med en ökning på ungefär 20 studenter.
@@ -296,12 +397,12 @@ andelar_program %>%
     ungroup() %>% 
     select(-antal, -program) %>% 
     spread(key = betyg, value = andel, fill = 0) %>% 
-    gather(betyg, andel,-kursnamn, -akademiskt_ar) %>% 
+    gather(betyg, andel,-kursnamn, -termindatum) %>% 
     mutate(
         betyg = factor(betyg, levels = c("U","VG","G"))
     ) %>% 
-    ggplot(aes(akademiskt_ar, andel, fill = betyg )) + 
-    geom_area(alpha = 0.6) + labs(title = "Andel godkänd A kurs, program", x = "Akademiskt år")
+    ggplot(aes(termindatum, andel, fill = betyg )) + 
+    geom_area(alpha = 0.6) + labs(title = "Andel godkänd A kurs, program", x = "")
 
 ```
 
@@ -315,12 +416,12 @@ andelar_program %>%
     ungroup() %>% 
     select(-antal, -program) %>% 
     spread(key = betyg, value = andel, fill = 0) %>% 
-    gather(betyg, andel,-kursnamn, -akademiskt_ar) %>% 
+    gather(betyg, andel,-kursnamn, -termindatum) %>% 
     mutate(
         betyg = factor(betyg, levels = c("U","VG","G"))
     ) %>% 
-    ggplot(aes(akademiskt_ar, andel, fill = betyg )) + 
-    geom_area(alpha = 0.6) + labs(title = "Andel godkänd A kurs, enstaka kurs", x = "Akademiskt år")
+    ggplot(aes(termindatum, andel, fill = betyg )) + 
+    geom_area(alpha = 0.6) + labs(title = "Andel godkänd A kurs, enstaka kurs", x="")
 
 ```
 
@@ -519,7 +620,7 @@ I följande tabell undersöker vi hur många studenter som läser olika delkurse
 ```{r}
 roundmean = function(x) round(mean(x, na.rm = TRUE),1)
 
-godkprov %>% 
+provresultat = godkprov %>% 
     filter(kursnamn == "Economics B" | kursnamn == "Economics C" ) %>% 
     mutate(
         delkurs = str_replace(delkurs, " 1", ""),
@@ -529,7 +630,9 @@ godkprov %>%
         delkurs = str_trim(delkurs)
         ) %>% 
     group_by(delkurs, akademiskt_ar, betyg) %>% 
-    summarise(antal = n()) %>% 
+    summarise(antal = n(), u = sum(u)) 
+
+provresultat  %>% 
     group_by(delkurs, akademiskt_ar) %>% 
     mutate(
         andel = 100 - round(antal / sum(antal) * 100, 0),
@@ -545,11 +648,30 @@ godkprov %>%
     kable()
 ```
 
+Hur många gånger skrev studenter underkänt i snitt? 
+
+```{r}
+provresultat  %>% 
+    group_by(delkurs, akademiskt_ar) %>% 
+    summarise(
+        u = sum(u),
+        antal = sum(antal),
+        usnitt = sum(u) / sum(antal)
+    ) %>% 
+    group_by(delkurs) %>% 
+    select(-akademiskt_ar) %>% 
+    summarise_all(funs(roundmean)) %>% 
+    # select(delkurs, godkända, totalt=tot, andel) %>% 
+    arrange(-usnitt) %>%
+    filter(antal > 1) %>% 
+    kable()
+```
+
 ## Masters
 
 ```{r}
 godkprov %>% 
-    filter(kursnamn == "Masters" ) %>% 
+    filter(kursnamn == "Masters" , akademiskt_ar < 2017) %>% 
     mutate(
         delkurs = str_replace(delkurs, "Advanced ", ""),
         delkurs = str_replace(delkurs, " 2", ""),
@@ -558,19 +680,26 @@ godkprov %>%
         delkurs = str_replace(delkurs, "Optional .*:", ""),
         delkurs = str_trim(delkurs)
         ) %>% 
-    group_by(delkurs, akademiskt_ar, betyg) %>% 
-    summarise(antal = n()) %>% 
+    group_by(prov, akademiskt_ar, betyg) %>% 
+    summarise(delkurs = first(delkurs), antal = n(), u = sum(u)) %>% 
     group_by(delkurs, akademiskt_ar) %>% 
     mutate(
-        andel = 100 - round(antal / sum(antal) * 100, 0),
-        tot = sum(antal),
-        godkända = tot - antal
+        totalt = sum(antal),
+        utotalt = sum(u)
+    ) %>% 
+    filter(betyg != "U") %>% 
+    mutate(
+        godkända = sum(antal),
+        andel = round(godkända / totalt * 100, 0),
+        utotalt = utotalt / totalt + 1
     ) %>% 
     group_by(delkurs) %>% 
-    filter(betyg == "U") %>% 
     select(-betyg, -antal) %>% 
     summarise_all(funs(roundmean)) %>% 
-    select(delkurs, godkända, totalt=tot, andel) %>% 
+    select(delkurs, godkända, totalt, andel, tentor = utotalt) %>% 
     arrange(-andel) %>% 
     kable()
 ```
+
+
+
